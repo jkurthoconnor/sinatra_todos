@@ -1,18 +1,18 @@
 a {
   color: inherit;
-  text-decoration: none; 
+  text-decoration: none;
 }
 
 body {
   font: normal 20px "PT Sans", Helvetica, Arial, sans-serif;
   color: #3f3f3f;
-  background: #ffffff; 
+  background: #ffffff;
 }
 
 body > header {
   max-width: 1000px;
   padding: 85px 0 35px 0;
-  margin: 0 auto; 
+  margin: 0 auto;
 }
 
 body > header h1 {
