@@ -19,17 +19,21 @@ not_found do
   redirect "/lists"
 end
 
+# view list of lists
 get "/lists" do
   @lists = session[:lists]
   erb :lists, layout: :layout
 end
 
+# render new list form
 get "/lists/new" do
   erb :new_list, layout: :layout
 end
 
+# create a new list
 post "/lists" do
   session[:lists] << {name: params[:list_name], todos: [] }
+  session[:success] = "The list has been created!"
   redirect "/lists"
 end
 
