@@ -26,6 +26,14 @@ get "/lists" do
   erb :lists, layout: :layout
 end
 
+# show single list
+get "/lists/:number" do
+  list_number = params[:number].to_i
+  @list_name = session[:lists][list_number][:name]
+
+  erb :single_list, layout: :layout
+end
+
 # render new list form
 get "/lists/new" do
   erb :new_list, layout: :layout
