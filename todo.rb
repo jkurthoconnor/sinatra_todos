@@ -22,6 +22,7 @@ end
 # view list of lists
 get "/lists" do
   @lists = session[:lists]
+
   erb :lists, layout: :layout
 end
 
@@ -32,9 +33,16 @@ end
 
 # create a new list
 post "/lists" do
-  session[:lists] << {name: params[:list_name], todos: [] }
-  session[:success] = "The list has been created!"
-  redirect "/lists"
+  list_name = params[:list_name].strip
+  if (1..100).cover?(list_name.size)
+    session[:lists] << {name: list_name, todos: [] }
+    session[:success] = "The list has been created!"
+    # session.keys => ["session_id", "csrf", "tracking", "lists", "success"]
+    redirect "/lists"
+  else
+    session[:error] = "List name must be between 1 and 100 characters."
+    erb :new_list, layout: :layout
+  end
 end
 
 
