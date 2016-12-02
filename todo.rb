@@ -27,15 +27,7 @@ get "/lists" do
   erb :lists, layout: :layout
 end
 
-# show single list
-get "/lists/:number" do
-  list_number = params[:number].to_i
-  @list_name = session[:lists][list_number][:name]
-
-  erb :single_list, layout: :layout
-end
-
-# render new list form
+# render new list form; must be before /lists/:id route or it is called instead, raising a no method [] error when initializing @list_name
 get "/lists/new" do
   erb :new_list, layout: :layout
 end
@@ -64,5 +56,14 @@ post "/lists" do
     redirect "/lists"
   end
 end
+
+# show single list; must be after /lists/new route to not be matched/called in its place
+get "/lists/:id" do
+  list_number = params[:id].to_i
+  @list_name = session[:lists][list_number][:name] # no method [] for nil; there are no lists at session[:lists] for [list_number] to retrieve by index;
+
+  erb :single_list, layout: :layout
+end
+
 
 
