@@ -59,11 +59,35 @@ end
 
 # show single list; must be after /lists/new route to not be matched/called in its place
 get "/lists/:id" do
-  list_number = params[:id].to_i
-  @list_name = session[:lists][list_number][:name] # no method [] for nil; there are no lists at session[:lists] for [list_number] to retrieve by index;
+  @list_number = params[:id].to_i
+  @list_name = session[:lists][@list_number][:name] # no method [] for nil; there are no lists at session[:lists] for [list_number] to retrieve by index;
 
   erb :single_list, layout: :layout
 end
+
+#render edit list form
+get "/lists/:id/edit" do
+  @list = session[:lists][params[:id].to_i]
+  erb :edit_list, layout: :layout
+end
+
+#update list name
+post "/lists/:id" do
+  new_name = params[:new_name].strip
+  @list = session[:lists][params[:id].to_i]
+
+  error = error_for_list_name(new_name)
+
+  if error
+    session[:error] = error
+    erb :edit_list, layout: :layout
+  else
+    @list[:name] = new_name
+    session[:success] = "The list has been updated!"
+    redirect "/lists/:id"
+  end
+end
+
 
 
 
