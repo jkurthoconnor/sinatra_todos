@@ -84,8 +84,16 @@ post "/lists/:id" do
   else
     @list[:name] = new_name
     session[:success] = "The list has been updated!"
-    redirect "/lists/:id"
+    redirect "/lists"
   end
+end
+
+# delete list
+post "/lists/:id/delete" do
+  list = session[:lists][params[:id].to_i]
+  session[:lists].delete_at(params[:id].to_i)
+  session[:success] = "'#{list[:name]}' has been deleted!"
+  redirect "/lists"
 end
 
 
