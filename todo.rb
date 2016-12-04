@@ -16,9 +16,9 @@ get "/" do
   redirect "/lists"
 end
 
-not_found do
-  redirect "/lists"
-end
+# not_found do
+#   redirect "/lists"
+# end
 
 # view list of lists
 get "/lists" do
@@ -27,10 +27,22 @@ get "/lists" do
   erb :lists, layout: :layout
 end
 
+
 # render new list form; must be before /lists/:id route or it is called instead, raising a no method [] error when initializing @list_name
 get "/lists/new" do
   erb :new_list, layout: :layout
 end
+
+
+# show single list; 
+# fix bug: currently must be after /lists/new route to not be matched/called in its place
+get "/lists/:id" do
+  @list_id = params[:id].to_i
+  @list = session[:lists][@list_id]
+
+  erb :single_list, layout: :layout
+end
+
 
 # return an error message if name is invalid; return nil if name is valid
 def error_for_list_name(name)
@@ -40,6 +52,7 @@ def error_for_list_name(name)
     "List names must be unique."
   end
 end
+
 
 # create a new list
 post "/lists" do
@@ -57,19 +70,13 @@ post "/lists" do
   end
 end
 
-# show single list; must be after /lists/new route to not be matched/called in its place
-get "/lists/:id" do
-  @list_number = params[:id].to_i
-  @list_name = session[:lists][@list_number][:name] # no method [] for nil; there are no lists at session[:lists] for [list_number] to retrieve by index;
-
-  erb :single_list, layout: :layout
-end
 
 #render edit list form
 get "/lists/:id/edit" do
   @list = session[:lists][params[:id].to_i]
   erb :edit_list, layout: :layout
 end
+
 
 #update list name
 post "/lists/:id" do
@@ -88,7 +95,8 @@ post "/lists/:id" do
   end
 end
 
-# delete list
+
+# delete a list
 post "/lists/:id/delete" do
   list = session[:lists][params[:id].to_i]
   session[:lists].delete_at(params[:id].to_i)
@@ -97,5 +105,33 @@ post "/lists/:id/delete" do
 end
 
 
+#validate new todo item
+def error_for_todo(name)
+  if !(1..100).cover?(name.size)
+    "Todo item must be between 1 and 100 characters."
+  elsif @todo_items.any? { |item| item[:name] == name }
+    "Todo items must be unique."
+  end
+end
+
+
+# add a new todo item to a list
+post "/lists/:id/todos" do
+  @list_id = params[:id].to_i
+  @list = session[:lists][@list_id]
+  @todo_items = @list[:todos]
+  todo = params[:todo].strip
+
+  error = error_for_todo(todo)
+
+  if error
+    session[:error] = error
+    erb :single_list, layout: :layout
+  else
+    @todo_items << {name: todo, completed: false}
+    session[:success] = "The todo has been added!"
+    redirect "/lists/#{@list_id}"  #must interpolate from params[:id], as opposed to simply redirect to `/lists/:id` because `:id` in the route simply says 'collect everything here under the `:id` key in `params`
+  end
+end
 
 
