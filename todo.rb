@@ -158,6 +158,17 @@ post "/lists/:id/todos/:index" do
   redirect "/lists/#{@list_id}"
 end
 
+
+# completes all items on list
+post "/lists/:id/complete" do
+  @list_id = params[:id].to_i
+  @list = session[:lists][@list_id]
+
+  @list[:todos].each { |todo| todo[:completed] = true }
+  session[:success] = "List completed!"
+  redirect "/lists/#{@list_id}"
+end
+
 # session[:lists] = [
                     # {:name=>"list one", :todos=>[{:name=>"an other new todo", :completed=>false}, {:name=>"next?", :completed=>false}]},
                     # 
