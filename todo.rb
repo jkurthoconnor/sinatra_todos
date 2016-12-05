@@ -65,7 +65,6 @@ post "/lists" do
   else
     session[:lists] << {name: list_name, todos: [] }
     session[:success] = "The list has been created!"
-    # session.keys => ["session_id", "csrf", "tracking", "lists", "success"]
     redirect "/lists"
   end
 end
@@ -145,3 +144,24 @@ post "/lists/:id/todos/:index/delete" do
   session[:success] = "Item deleted!"
   redirect "/lists/#{@list_id}"
 end
+
+
+# update a todo's status
+post "/lists/:id/todos/:index" do
+  @list_id = params[:id].to_i
+  @list = session[:lists][@list_id]
+  index = params[:index].to_i
+
+  is_it_complete = params[:completed] == 'true'
+  @list[:todos][index][:completed] = is_it_complete
+  session[:success] = "Item updated!"
+  redirect "/lists/#{@list_id}"
+end
+
+# session[:lists] = [
+                    # {:name=>"list one", :todos=>[{:name=>"an other new todo", :completed=>false}, {:name=>"next?", :completed=>false}]},
+                    # 
+                    # {:name=>"my other new list", :todos=>[{:name=>"first item this minute!!", :completed=>false}]}, 
+                    # 
+                    # {:name=>"my list", :todos=>[{:name=>"yes!!", :completed=>false}, {:name=>"No?", :completed=>false}]}
+                  # ]
