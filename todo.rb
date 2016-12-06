@@ -8,9 +8,30 @@ configure do
   set :session_secret, 'secret'
 end
 
+
+helpers do
+  def completed?(list)
+    (total_todos(list) > 0) && (todos_remaining(list) == 0)
+  end
+
+  def list_class(list)
+    completed?(list) ? "complete" : ""
+  end
+
+  def todos_remaining(list)
+    list[:todos].select { |todo| !todo[:completed] }.size
+  end
+
+  def total_todos(list)
+    list[:todos].size
+  end
+end
+
+
 before do
   session[:lists] ||= []
 end
+
 
 get "/" do
   redirect "/lists"
