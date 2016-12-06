@@ -1,4 +1,3 @@
-
 <section id="todos" class="<%= list_class(@list) %>">
   <header>
     <h2><%= @list[:name] %></h2>
@@ -15,12 +14,8 @@
   </header>
 
   <ul>
-    <% @list[:todos].each_with_index do |item, index| %>
-      <% if item[:completed] %>
-        <li class="complete">
-      <% else %>
-        <li>
-      <% end %> 
+    <% sort_todos(@list[:todos]) do |item, index| %>
+        <li class="<%= item_class(item) %>">
 
         <form action="/lists/<%= @list_id %>/todos/<%= index %>" method="post" class="check">
           <input type="hidden" name="completed" value="<%= !item[:completed] %>" />

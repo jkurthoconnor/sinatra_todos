@@ -18,12 +18,30 @@ helpers do
     completed?(list) ? "complete" : ""
   end
 
+  def item_class(item)
+    item[:completed] == true ? "complete" : ""
+  end
+
   def todos_remaining(list)
     list[:todos].select { |todo| !todo[:completed] }.size
   end
 
   def total_todos(list)
     list[:todos].size
+  end
+
+  def sort_lists(lists, &block)
+    sorted = lists.sort_by { |list| completed?(list) ? 1 : 0 }
+    sorted.each do |list|
+      yield(list, lists.index(list))
+    end
+  end
+
+  def sort_todos(todos, &block)
+    sorted = todos.sort_by { |todo| todo[:completed] ? 1 : 0 }
+    sorted.each do |todo|
+      yield(todo, todos.index(todo))
+    end
   end
 end
 
@@ -37,9 +55,6 @@ get "/" do
   redirect "/lists"
 end
 
-# not_found do
-#   redirect "/lists"
-# end
 
 # view list of lists
 get "/lists" do
@@ -49,14 +64,13 @@ get "/lists" do
 end
 
 
-# render new list form; must be before /lists/:id route or it is called instead, raising a no method [] error when initializing @list_name
+# render new list form;
 get "/lists/new" do
   erb :new_list, layout: :layout
 end
 
 
 # show single list; 
-# fix bug: currently must be after /lists/new route to not be matched/called in its place
 get "/lists/:id" do
   @list_id = params[:id].to_i
   @list = session[:lists][@list_id]
@@ -150,7 +164,7 @@ post "/lists/:id/todos" do
   else
     @todo_items << {name: todo, completed: false}
     session[:success] = "The todo has been added!"
-    redirect "/lists/#{@list_id}"  #must interpolate from params[:id], as opposed to simply redirect to `/lists/:id` because `:id` in the route simply says 'collect everything here under the `:id` key in `params`
+    redirect "/lists/#{@list_id}"
   end
 end
 
@@ -189,11 +203,3 @@ post "/lists/:id/complete" do
   session[:success] = "List completed!"
   redirect "/lists/#{@list_id}"
 end
-
-# session[:lists] = [
-                    # {:name=>"list one", :todos=>[{:name=>"an other new todo", :completed=>false}, {:name=>"next?", :completed=>false}]},
-                    # 
-                    # {:name=>"my other new list", :todos=>[{:name=>"first item this minute!!", :completed=>false}]}, 
-                    # 
-                    # {:name=>"my list", :todos=>[{:name=>"yes!!", :completed=>false}, {:name=>"No?", :completed=>false}]}
-                  # ]
