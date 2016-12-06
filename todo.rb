@@ -72,10 +72,18 @@ get "/lists/new" do
 end
 
 
+def validate_and_load_list(index)
+  if index >= session[:lists].size
+    session[:error] = "Requested list was not found."
+    redirect "/lists"
+  end
+  session[:lists][index]
+end
+
 # show single list; 
 get "/lists/:id" do
   @list_id = params[:id].to_i
-  @list = session[:lists][@list_id]
+  @list = validate_and_load_list(@list_id)
 
   erb :single_list, layout: :layout
 end
@@ -109,7 +117,7 @@ end
 
 #render edit list form
 get "/lists/:id/edit" do
-  @list = session[:lists][params[:id].to_i]
+  @list = validate_and_load_list(params[:id].to_i)
   erb :edit_list, layout: :layout
 end
 
@@ -117,7 +125,7 @@ end
 #update list name
 post "/lists/:id" do
   new_name = params[:new_name].strip
-  @list = session[:lists][params[:id].to_i]
+  @list = validate_and_load_list(params[:id].to_i)
 
   error = error_for_list_name(new_name)
 
@@ -134,7 +142,7 @@ end
 
 # delete a list
 post "/lists/:id/delete" do
-  list = session[:lists][params[:id].to_i]
+  list = validate_and_load_list(params[:id].to_i)
   session[:lists].delete_at(params[:id].to_i)
   session[:success] = "'#{list[:name]}' has been deleted!"
   redirect "/lists"
@@ -154,7 +162,7 @@ end
 # add a new todo item to a list
 post "/lists/:id/todos" do
   @list_id = params[:id].to_i
-  @list = session[:lists][@list_id]
+  @list = validate_and_load_list(@list_id)
   @todo_items = @list[:todos]
   todo = params[:todo].strip
 
@@ -174,7 +182,7 @@ end
 # delete a todo from a list
 post "/lists/:id/todos/:index/delete" do
   @list_id = params[:id].to_i
-  @list = session[:lists][@list_id]
+  @list = validate_and_load_list(@list_id)
   index = params[:index].to_i
 
   @list[:todos].delete_at(index)
@@ -186,7 +194,7 @@ end
 # update a todo's status
 post "/lists/:id/todos/:index" do
   @list_id = params[:id].to_i
-  @list = session[:lists][@list_id]
+  @list = validate_and_load_list(@list_id)
   index = params[:index].to_i
 
   is_it_complete = params[:completed] == 'true'
@@ -199,7 +207,7 @@ end
 # completes all items on list
 post "/lists/:id/complete" do
   @list_id = params[:id].to_i
-  @list = session[:lists][@list_id]
+  @list = validate_and_load_list(@list_id)
 
   @list[:todos].each { |todo| todo[:completed] = true }
   session[:success] = "List completed!"
