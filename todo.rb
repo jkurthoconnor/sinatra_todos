@@ -42,7 +42,7 @@ helpers do
   def sort_todos(todos, &block)
     sorted = todos.sort_by { |todo| todo[:completed] ? 1 : 0 }
     sorted.each do |todo|
-      yield(todo, todos.index(todo))
+      yield(todo)
     end
   end
 end
@@ -84,6 +84,7 @@ end
 get "/lists/:id" do
   @list_id = params[:id].to_i
   @list = validate_and_load_list(@list_id)
+  @todo_items = @list[:todos]
 
   erb :single_list, layout: :layout
 end
@@ -162,6 +163,11 @@ def error_for_todo(name)
   end
 end
 
+def next_todo_id(todos)
+  max = todos.map { |todo| todo[:id] }.max || 0
+  max + 1
+end
+
 
 # add a new todo item to a list
 post "/lists/:id/todos" do
@@ -176,7 +182,8 @@ post "/lists/:id/todos" do
     session[:error] = error
     erb :single_list, layout: :layout
   else
-    @todo_items << {name: todo, completed: false}
+    id = next_todo_id(@todo_items)
+    @todo_items << {id: id, name: todo, completed: false}
     session[:success] = "The todo has been added!"
     redirect "/lists/#{@list_id}"
   end
@@ -184,12 +191,13 @@ end
 
 
 # delete a todo from a list
-post "/lists/:id/todos/:index/delete" do
+post "/lists/:id/todos/:item_id/delete" do
   @list_id = params[:id].to_i
   @list = validate_and_load_list(@list_id)
-  index = params[:index].to_i
+  id = params[:item_id].to_i
+  @todo_items = @list[:todos]
 
-  @list[:todos].delete_at(index)
+  @todo_items.delete_if { |item| item[:id] == id }
   if env["HTTP_X_REQUESTED_WITH"] == "XMLHttpRequest"
     status 204 # ok no content
   else
@@ -200,13 +208,15 @@ end
 
 
 # update a todo's status
-post "/lists/:id/todos/:index" do
+post "/lists/:id/todos/:item_id" do
   @list_id = params[:id].to_i
   @list = validate_and_load_list(@list_id)
-  index = params[:index].to_i
+  id = params[:item_id].to_i
+  @todo_items = @list[:todos]
 
   is_it_complete = params[:completed] == 'true'
-  @list[:todos][index][:completed] = is_it_complete
+  item = @todo_items.select { |item| item[:id] == id}
+  item[0][:completed] = is_it_complete
   session[:success] = "Item updated!"
   redirect "/lists/#{@list_id}"
 end
@@ -216,8 +226,9 @@ end
 post "/lists/:id/complete" do
   @list_id = params[:id].to_i
   @list = validate_and_load_list(@list_id)
+  @todo_items = @list[:todos]
 
-  @list[:todos].each { |todo| todo[:completed] = true }
+  @todo_items.each { |todo| todo[:completed] = true }
   session[:success] = "List completed!"
   redirect "/lists/#{@list_id}"
 end
