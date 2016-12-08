@@ -144,8 +144,12 @@ end
 post "/lists/:id/delete" do
   list = validate_and_load_list(params[:id].to_i)
   session[:lists].delete_at(params[:id].to_i)
-  session[:success] = "'#{list[:name]}' has been deleted!"
-  redirect "/lists"
+  if env["HTTP_X_REQUESTED_WITH"] == "XMLHttpRequest"
+    "/lists"
+  else
+    session[:success] = "'#{list[:name]}' has been deleted!"
+    redirect "/lists"
+  end
 end
 
 
@@ -186,8 +190,12 @@ post "/lists/:id/todos/:index/delete" do
   index = params[:index].to_i
 
   @list[:todos].delete_at(index)
-  session[:success] = "Item deleted!"
-  redirect "/lists/#{@list_id}"
+  if env["HTTP_X_REQUESTED_WITH"] == "XMLHttpRequest"
+    status 204 # ok no content
+  else
+    session[:success] = "Item deleted!"
+    redirect "/lists/#{@list_id}"
+  end
 end
 
 
