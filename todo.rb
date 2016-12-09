@@ -35,7 +35,7 @@ helpers do
   def sort_lists(lists, &block)
     sorted = lists.sort_by { |list| completed?(list) ? 1 : 0 }
     sorted.each do |list|
-      yield(list, lists.index(list))
+      yield(list)
     end
   end
 
@@ -72,15 +72,16 @@ get "/lists/new" do
 end
 
 
-def validate_and_load_list(index)
-  if index >= session[:lists].size
-    session[:error] = "Requested list was not found."
+def validate_and_load_list(id)
+  if session[:lists].map { |list| list[:id] }.include?(id)
+    session[:lists].find { |list| list[:id] == id }
+  else
+    session[:error] = "Requested list with id #{id} was not found."
     redirect "/lists"
   end
-  session[:lists][index]
 end
 
-# show single list; 
+# show single list;
 get "/lists/:id" do
   @list_id = params[:id].to_i
   @list = validate_and_load_list(@list_id)
@@ -100,6 +101,12 @@ def error_for_list_name(name)
 end
 
 
+def next_list_id(lists)
+  max = lists.map { |list| list[:id] }.max || 0
+  max + 1
+end
+
+
 # create a new list
 post "/lists" do
   list_name = params[:list_name].strip
@@ -109,7 +116,8 @@ post "/lists" do
     session[:error] = error
     erb :new_list, layout: :layout
   else
-    session[:lists] << {name: list_name, todos: [] }
+    id = next_list_id(session[:lists])
+    session[:lists] << {id: id, name: list_name, todos: [] }
     session[:success] = "The list has been created!"
     redirect "/lists"
   end
@@ -144,7 +152,7 @@ end
 # delete a list
 post "/lists/:id/delete" do
   list = validate_and_load_list(params[:id].to_i)
-  session[:lists].delete_at(params[:id].to_i)
+  session[:lists].delete_if { |list| list[:id] == params[:id].to_i }
   if env["HTTP_X_REQUESTED_WITH"] == "XMLHttpRequest"
     "/lists"
   else
