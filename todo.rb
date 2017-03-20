@@ -48,8 +48,93 @@ helpers do
 end
 
 
+class SessionPersistence
+  def initialize(session)
+    @session = session
+    @session[:lists] ||= []
+  end
+
+  def find_list(id)
+    @session[:lists].find { |list| list[:id] == id }
+  end
+
+  def all_lists
+    @session[:lists]
+  end
+
+  def create_list(list_name)
+    id = next_id(all_lists)
+    @session[:lists] << {id: id, name: list_name, todos: [] }
+  end
+
+  def delete_list(id)
+    @session[:lists].delete_if { |list| list[:id] == id }
+  end
+
+  def update_list_name(list_id, name)
+    list = find_list(list_id)
+    list[:name] = name
+  end
+
+  def add_todo(list_id, todo_name)
+    list = find_list(list_id)
+    id = next_id(list[:todos])
+    list[:todos] << {id: id, name: todo_name, completed: false}
+  end
+
+  def delete_todo(list_id, todo_id)
+    list = find_list(list_id)
+    list[:todos].delete_if { |item| item[:id] == todo_id }
+  end
+
+  def update_todo(list_id, todo_id)
+    list = find_list(list_id)
+    item = list[:todos].find { |todo| todo[:id] == todo_id }
+    item[:completed] = !item[:completed]
+  end
+
+  def complete_all(list_id)
+    list = find_list(list_id)
+    list[:todos].each { |todo| todo[:completed] = true }
+  end
+
+  private
+
+  def next_id(collections)
+    max = collections.map { |list| list[:id] }.max || 0
+    max + 1
+  end
+end
+
+
+def validate_and_load_list(id)
+  list = @storage.find_list(id)
+  return list if list
+
+  session[:error] = "Requested list with id #{id} was not found."
+  redirect "/lists"
+end
+
+# return an error message if name is invalid; return nil if name is valid
+def error_for_list_name(name)
+  if !(1..100).cover?(name.size)
+    "List name must be between 1 and 100 characters."
+  elsif @storage.all_lists.any? { |list| list[:name] == name }
+    "List names must be unique."
+  end
+end
+
+#validate new todo item
+def error_for_todo(name)
+  if !(1..100).cover?(name.size)
+    "Todo item must be between 1 and 100 characters."
+  elsif @todo_items.any? { |item| item[:name] == name }
+    "Todo items must be unique."
+  end
+end
+
 before do
-  session[:lists] ||= []
+  @storage = SessionPersistence.new(session)
 end
 
 
@@ -60,8 +145,7 @@ end
 
 # view list of lists
 get "/lists" do
-  @lists = session[:lists]
-
+  @lists = @storage.all_lists
   erb :lists, layout: :layout
 end
 
@@ -72,15 +156,6 @@ get "/lists/new" do
 end
 
 
-def validate_and_load_list(id)
-  if session[:lists].map { |list| list[:id] }.include?(id)
-    session[:lists].find { |list| list[:id] == id }
-  else
-    session[:error] = "Requested list with id #{id} was not found."
-    redirect "/lists"
-  end
-end
-
 # show single list;
 get "/lists/:id" do
   @list_id = params[:id].to_i
@@ -88,22 +163,6 @@ get "/lists/:id" do
   @todo_items = @list[:todos]
 
   erb :single_list, layout: :layout
-end
-
-
-# return an error message if name is invalid; return nil if name is valid
-def error_for_list_name(name)
-  if !(1..100).cover?(name.size)
-    "List name must be between 1 and 100 characters."
-  elsif session[:lists].any? { |list| list[:name] == name }
-    "List names must be unique."
-  end
-end
-
-
-def next_list_id(lists)
-  max = lists.map { |list| list[:id] }.max || 0
-  max + 1
 end
 
 
@@ -116,8 +175,7 @@ post "/lists" do
     session[:error] = error
     erb :new_list, layout: :layout
   else
-    id = next_list_id(session[:lists])
-    session[:lists] << {id: id, name: list_name, todos: [] }
+    @storage.create_list(list_name)
     session[:success] = "The list has been created!"
     redirect "/lists"
   end
@@ -135,14 +193,13 @@ end
 post "/lists/:id" do
   new_name = params[:new_name].strip
   @list = validate_and_load_list(params[:id].to_i)
-
   error = error_for_list_name(new_name)
 
   if error
     session[:error] = error
     erb :edit_list, layout: :layout
   else
-    @list[:name] = new_name
+    @storage.update_list_name(params[:id].to_i, new_name)
     session[:success] = "The list has been updated!"
     redirect "/lists"
   end
@@ -152,28 +209,15 @@ end
 # delete a list
 post "/lists/:id/delete" do
   list = validate_and_load_list(params[:id].to_i)
-  session[:lists].delete_if { |list| list[:id] == params[:id].to_i }
+
+  @storage.delete_list(params[:id].to_i)
+
   if env["HTTP_X_REQUESTED_WITH"] == "XMLHttpRequest"
     "/lists"
   else
     session[:success] = "'#{list[:name]}' has been deleted!"
     redirect "/lists"
   end
-end
-
-
-#validate new todo item
-def error_for_todo(name)
-  if !(1..100).cover?(name.size)
-    "Todo item must be between 1 and 100 characters."
-  elsif @todo_items.any? { |item| item[:name] == name }
-    "Todo items must be unique."
-  end
-end
-
-def next_todo_id(todos)
-  max = todos.map { |todo| todo[:id] }.max || 0
-  max + 1
 end
 
 
@@ -191,7 +235,7 @@ post "/lists/:id/todos" do
     erb :single_list, layout: :layout
   else
     id = next_todo_id(@todo_items)
-    @todo_items << {id: id, name: todo, completed: false}
+    @storage.add_todo(@list_id, todo)
     session[:success] = "The todo has been added!"
     redirect "/lists/#{@list_id}"
   end
@@ -205,7 +249,8 @@ post "/lists/:id/todos/:item_id/delete" do
   id = params[:item_id].to_i
   @todo_items = @list[:todos]
 
-  @todo_items.delete_if { |item| item[:id] == id }
+  @storage.delete_todo(@list_id, id)
+
   if env["HTTP_X_REQUESTED_WITH"] == "XMLHttpRequest"
     status 204 # ok no content
   else
@@ -222,9 +267,7 @@ post "/lists/:id/todos/:item_id" do
   id = params[:item_id].to_i
   @todo_items = @list[:todos]
 
-  is_it_complete = params[:completed] == 'true'
-  item = @todo_items.select { |item| item[:id] == id}
-  item[0][:completed] = is_it_complete
+  @storage.update_todo(@list_id, id)
   session[:success] = "Item updated!"
   redirect "/lists/#{@list_id}"
 end
@@ -236,7 +279,7 @@ post "/lists/:id/complete" do
   @list = validate_and_load_list(@list_id)
   @todo_items = @list[:todos]
 
-  @todo_items.each { |todo| todo[:completed] = true }
+  @storage.complete_all(@list_id)
   session[:success] = "List completed!"
   redirect "/lists/#{@list_id}"
 end
