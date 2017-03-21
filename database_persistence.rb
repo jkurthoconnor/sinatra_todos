@@ -1,12 +1,12 @@
-
 require 'pg'
 
+# API for todos to interact with psql database
 class DatabasePersistence
   def initialize(logger)
     @db = PG.connect(dbname: 'todos')
     @logger = logger
   end
-  
+
   def query(statement, *params)
     @logger.info "#{statement} : #{params}"
     @db.exec_params(statement, params)
@@ -19,8 +19,8 @@ class DatabasePersistence
     tuple = result.first
 
     todos = find_todos_for_list(id)
-    {id: tuple['id'].to_i, name: tuple['name'], todos: todos }
-   end
+    { id: tuple['id'].to_i, name: tuple['name'], todos: todos }
+  end
 
   def all_lists
     sql = 'SELECT * FROM lists ;'
@@ -29,45 +29,44 @@ class DatabasePersistence
     result.map do |tuple|
       todos = find_todos_for_list(tuple['id'].to_i)
 
-      {id: tuple['id'].to_i, name: tuple['name'], todos: todos }
+      { id: tuple['id'].to_i, name: tuple['name'], todos: todos }
     end
-      # session[:lists] structure: `[{:id=>"1", :name=>"homework", :todos=>[]}, {:id=>"2", :name=>"groceries", :todos=>[]}, {:id=>"3", :name=>"chores", :todos=>[]}]`
   end
 
   def create_list(list_name)
-    # id = next_id(all_lists)
-    # @session[:lists] << {id: id, name: list_name, todos: [] }
+    sql = 'INSERT INTO lists (name) VALUES ($1);'
+    query(sql, list_name)
   end
 
   def delete_list(id)
-    # @session[:lists].delete_if { |list| list[:id] == id }
+    sql = 'DELETE FROM lists WHERE id=$1;'
+    query(sql, id)
   end
 
   def update_list_name(list_id, name)
-    # list = find_list(list_id)
-    # list[:name] = name
+    sql = 'UPDATE lists SET name=$1 WHERE id=$2;'
+    query(sql, name, list_id)
   end
 
   def add_todo(list_id, todo_name)
-    # list = find_list(list_id)
-    # id = next_id(list[:todos])
-    # list[:todos] << {id: id, name: todo_name, completed: false}
+    sql = 'INSERT INTO todos (name, list_id) VALUES ($1, $2);'
+    query(sql, todo_name, list_id)
   end
 
-  def delete_todo(list_id, todo_id)
-    # list = find_list(list_id)
-    # list[:todos].delete_if { |item| item[:id] == todo_id }
+  def delete_todo(todo_id)
+    sql = 'DELETE FROM todos WHERE id=$1;'
+    query(sql, todo_id)
   end
 
-  def update_todo(list_id, todo_id)
-    # list = find_list(list_id)
-    # item = list[:todos].find { |todo| todo[:id] == todo_id }
-    # item[:completed] = !item[:completed]
+  def update_todo(todo_id)
+    sql = 'UPDATE todos SET completed=NOT(SELECT completed FROM todos ' \
+          'WHERE id=$1) WHERE id=$1;'
+    query(sql, todo_id)
   end
 
   def complete_all(list_id)
-    # list = find_list(list_id)
-    # list[:todos].each { |todo| todo[:completed] = true }
+    sql = 'UPDATE todos SET completed=TRUE WHERE list_id=$1;'
+    query(sql, list_id)
   end
 
   private
@@ -76,9 +75,9 @@ class DatabasePersistence
     todo_sql = 'SELECT * FROM todos WHERE list_id = $1;'
     todo_result = query(todo_sql, id)
     todo_result.map do |todo_tuple|
-      {id: todo_tuple['id'].to_i, # nb: values returned by pg are strings
-       name: todo_tuple['name'],
-       completed: todo_tuple['completed'] == 't'} # converts to boolean
+      { id: todo_tuple['id'].to_i,
+        name: todo_tuple['name'],
+        completed: todo_tuple['completed'] == 't' }
     end
   end
 end
