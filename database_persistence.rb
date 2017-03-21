@@ -17,17 +17,21 @@ class DatabasePersistence
     result = query(sql, id)
 
     tuple = result.first
-    {id: tuple['id'], name: tuple['name'], todos:[] }
+
+    todos = find_todos_for_list(id)
+    {id: tuple['id'].to_i, name: tuple['name'], todos: todos }
    end
 
   def all_lists
-    sql = 'SELECT * FROM lists;'
+    sql = 'SELECT * FROM lists ;'
     result = query(sql)
 
     result.map do |tuple|
-      {id: tuple['id'], name: tuple['name'], todos:[] }
-    end # return replicates session[:lists] structure:
-      # `[{:id=>"1", :name=>"homework", :todos=>[]}, {:id=>"2", :name=>"groceries", :todos=>[]}, {:id=>"3", :name=>"chores", :todos=>[]}]`
+      todos = find_todos_for_list(tuple['id'].to_i)
+
+      {id: tuple['id'].to_i, name: tuple['name'], todos: todos }
+    end
+      # session[:lists] structure: `[{:id=>"1", :name=>"homework", :todos=>[]}, {:id=>"2", :name=>"groceries", :todos=>[]}, {:id=>"3", :name=>"chores", :todos=>[]}]`
   end
 
   def create_list(list_name)
@@ -64,5 +68,17 @@ class DatabasePersistence
   def complete_all(list_id)
     # list = find_list(list_id)
     # list[:todos].each { |todo| todo[:completed] = true }
+  end
+
+  private
+
+  def find_todos_for_list(id)
+    todo_sql = 'SELECT * FROM todos WHERE list_id = $1;'
+    todo_result = query(todo_sql, id)
+    todo_result.map do |todo_tuple|
+      {id: todo_tuple['id'].to_i, # nb: values returned by pg are strings
+       name: todo_tuple['name'],
+       completed: todo_tuple['completed'] == 't'} # converts to boolean
+    end
   end
 end
