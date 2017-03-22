@@ -14,7 +14,7 @@
   </header>
 
   <ul>
-    <% sort_todos(@todo_items) do |item| %>
+    <% sort_todos(@todos) do |item| %>
         <li class="<%= item_class(item) %>">
 
         <form action="/lists/<%= @list_id %>/todos/<%= item[:id] %>" method="post" class="check">

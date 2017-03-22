@@ -18,8 +18,8 @@ end
 
 helpers do
   def completed?(list)
-    (total_todos(list) > 0) && todos_remaining(list).zero?
-  end
+    (list[:total_todos] > 0) && list[:todos_remaining].zero?
+   end
 
   def list_class(list)
     completed?(list) ? 'complete' : ''
@@ -27,14 +27,6 @@ helpers do
 
   def item_class(item)
     item[:completed] == true ? 'complete' : ''
-  end
-
-  def todos_remaining(list)
-    list[:todos].select { |todo| !todo[:completed] }.size
-  end
-
-  def total_todos(list)
-    list[:todos].size
   end
 
   def sort_lists(lists, &block)
@@ -73,7 +65,7 @@ end
 def error_for_todo(name)
   if !(1..100).cover?(name.size)
     'Todo item must be between 1 and 100 characters.'
-  elsif @todo_items.any? { |item| item[:name] == name }
+  elsif @todos.any? { |item| item[:name] == name }
     'Todo items must be unique.'
   end
 end
@@ -101,7 +93,7 @@ end
 get '/lists/:id' do
   @list_id = params[:id].to_i
   @list = validate_and_load_list(@list_id)
-  @todo_items = @list[:todos]
+  @todos = @storage.find_todos_for_list(@list_id)
 
   erb :single_list, layout: :layout
 end
@@ -161,7 +153,7 @@ end
 post '/lists/:id/todos' do
   @list_id = params[:id].to_i
   @list = validate_and_load_list(@list_id)
-  @todo_items = @list[:todos]
+  @todos = @storage.find_todos_for_list(@list_id)
   todo = params[:todo].strip
 
   error = error_for_todo(todo)
