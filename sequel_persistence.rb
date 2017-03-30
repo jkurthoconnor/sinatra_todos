@@ -1,10 +1,10 @@
 require 'sequel'
 
-# API for todos to interact via sequel with psql database
+# API for todos to interact via sequel library with psql database
 class SequelPersistence
   def initialize(logger)
-    @db = PG.connect(dbname: 'todos')
-    @logger = logger
+    @db = Sequel.connect(adapter: 'postgres', database: 'todos')
+    @db.loggers << logger
   end
 
   def query(statement, *params)
@@ -25,26 +25,21 @@ class SequelPersistence
     SQL
 
     result = query(sql, id)
-
+ 
     tuple_to_list_hash(result.first)
   end
 
   def all_lists
-    sql = <<~SQL
-      SELECT lists.*,
-      COUNT(NULLIF(todos.completed, TRUE)) AS todos_remaining,
-      COUNT(todos.id) AS total_todos
-      FROM lists
-      LEFT OUTER JOIN todos ON lists.id=todos.list_id
-      GROUP BY lists.id
-      ORDER BY lists.name;
-    SQL
-    result = query(sql)
-
-    result.map do |tuple|
-      tuple_to_list_hash(tuple)
-    end
+    @db[:lists].left_join(:todos, list_id: :id).
+      select_all(:lists).
+      select_append do
+        [ count(todos__id).as(total_todos),
+        count(nullif(todos__completed, true)).as(todos_remaining) ]
+      end.
+      group(:lists__id).
+      order(:lists__name)
   end
+
 
   def create_list(list_name)
     sql = 'INSERT INTO lists (name) VALUES ($1);'
