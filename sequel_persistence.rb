@@ -1,7 +1,7 @@
-require 'pg'
+require 'sequel'
 
-# API for todos to interact via pg with psql database
-class DatabasePersistence
+# API for todos to interact via sequel with psql database
+class SequelPersistence
   def initialize(logger)
     @db = PG.connect(dbname: 'todos')
     @logger = logger
