@@ -14,12 +14,11 @@ configure(:development) do
   require 'sinatra/reloader'
   also_reload 'sequel_persistence.rb'
 end
-  
 
 helpers do
   def completed?(list)
     (list[:total_todos] > 0) && list[:todos_remaining].zero?
-   end
+  end
 
   def list_class(list)
     completed?(list) ? 'complete' : ''

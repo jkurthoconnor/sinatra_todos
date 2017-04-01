@@ -1,101 +1,59 @@
 require 'sequel'
 
+DB = Sequel.connect(adapter: 'postgres', database: 'todos')
+
 # API for todos to interact via sequel library with psql database
 class SequelPersistence
   def initialize(logger)
-    @db = Sequel.connect(adapter: 'postgres', database: 'todos')
-    @db.loggers << logger
+    DB.logger = logger
   end
 
-  def query(statement, *params)
-    @logger.info "#{statement} : #{params}"
-    @db.exec_params(statement, params)
-  end
-
-  def find_list(id)
-    sql = <<~SQL
-      SELECT lists.*,
-      COUNT(NULLIF(todos.completed, TRUE)) AS todos_remaining,
-      COUNT(todos.id) AS total_todos
-      FROM lists
-      LEFT OUTER JOIN todos ON lists.id=todos.list_id
-      WHERE lists.id = $1
-      GROUP BY lists.id
-      ORDER BY lists.name;
-    SQL
-
-    result = query(sql, id)
- 
-    tuple_to_list_hash(result.first)
+  def find_list(list_id)
+    all_lists.where(lists__id: list_id).first
   end
 
   def all_lists
-    @db[:lists].left_join(:todos, list_id: :id).
+    DB[:lists].left_join(:todos, list_id: :id).
       select_all(:lists).
       select_append do
-        [ count(todos__id).as(total_todos),
-        count(nullif(todos__completed, true)).as(todos_remaining) ]
+        [count(todos__id).as(total_todos),
+         count(nullif(todos__completed, true)).as(todos_remaining)]
       end.
       group(:lists__id).
       order(:lists__name)
   end
 
-
   def create_list(list_name)
-    sql = 'INSERT INTO lists (name) VALUES ($1);'
-    query(sql, list_name)
+    DB[:lists].insert(name: list_name)
   end
 
   def delete_list(id)
-    todo_sql = 'DELETE FROM todos WHERE list_id=$1;'
-    query(todo_sql, id)
-
-    sql = 'DELETE FROM lists WHERE id=$1;'
-    query(sql, id)
+    DB[:todos].where(list_id: id).delete
+    DB[:lists].where(id: id).delete
   end
 
   def update_list_name(list_id, name)
-    sql = 'UPDATE lists SET name=$1 WHERE id=$2;'
-    query(sql, name, list_id)
+    DB[:lists].where(id: list_id).update(name: name)
   end
 
   def add_todo(list_id, todo_name)
-    sql = 'INSERT INTO todos (name, list_id) VALUES ($1, $2);'
-    query(sql, todo_name, list_id)
+    DB[:todos].insert(name: todo_name, list_id: list_id)
   end
 
   def delete_todo(todo_id)
-    sql = 'DELETE FROM todos WHERE id=$1;'
-    query(sql, todo_id)
+    DB[:todos].where(id: todo_id).delete
   end
 
   def update_todo(todo_id)
-    sql = 'UPDATE todos SET completed=NOT(SELECT completed FROM todos ' \
-          'WHERE id=$1) WHERE id=$1;'
-    query(sql, todo_id)
+    current_status = DB[:todos].where(id: todo_id).first[:completed]
+    DB[:todos].where(id: todo_id).update(completed: !current_status)
   end
 
   def complete_all(list_id)
-    sql = 'UPDATE todos SET completed=TRUE WHERE list_id=$1;'
-    query(sql, list_id)
+    DB[:todos].where(list_id: list_id).update(completed: true)
   end
 
   def find_todos_for_list(id)
-    todo_sql = 'SELECT * FROM todos WHERE list_id = $1;'
-    todo_result = query(todo_sql, id)
-    todo_result.map do |todo_tuple|
-      { id: todo_tuple['id'].to_i,
-        name: todo_tuple['name'],
-        completed: todo_tuple['completed'] == 't' }
-    end
-  end
-
-  private
-
-  def tuple_to_list_hash(tuple)
-    { id: tuple['id'].to_i,
-      name: tuple['name'],
-      todos_remaining: tuple['todos_remaining'].to_i,
-      total_todos: tuple['total_todos'].to_i }
+    DB[:todos].where(list_id: id)
   end
 end
